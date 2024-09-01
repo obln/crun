@@ -134,6 +134,7 @@ int main(int argc, char** argv) {
     }
 
     if (argc > 2) {
+        // Pass the rest of the args passed onto this process to the executable
         char** arr = malloc(sizeof(char*) * (argc - 1));
         memcpy(arr, &argv[1], sizeof(char*) * (argc - 1));
         int code = execv(temp_exe, (char* const*)arr);
