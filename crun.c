@@ -20,6 +20,7 @@ int file_exists(const char* path) {
   return (attribs != INVALID_FILE_ATTRIBUTES && !(attribs & FILE_ATTRIBUTE_DIRECTORY));
 }
 
+#define execv _execv
 #else
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -57,6 +58,8 @@ CompilerInfo detect_compiler() {
     if (CHECK_COMMAND_EXISTS("cl")) return (CompilerInfo){ .command="cl", .style=CompilerArgStyle_MSVC };
     // MinGW in PATH
     else if (CHECK_COMMAND_EXISTS("gcc")) return (CompilerInfo){ .command="gcc", .style=CompilerArgStyle_GCC };
+    // Clang in PATH
+    else if (CHECK_COMMAND_EXISTS("clang")) return (CompilerInfo){ .command="clang", .style=CompilerArgStyle_GCC };
 
     return (CompilerInfo){ .command=NULL, .style=CompilerArgStyle_NONE };
 }
@@ -67,9 +70,9 @@ CompilerInfo detect_compiler() {
     const char* env_cc = getenv("CC");
     // CC environment variable (assuming gcc-like)
     if (env_cc != NULL) return (CompilerInfo){ .command=env_cc, .style=CompilerArgStyle_GCC };
-    // gcc in PATH
+    // GCC in PATH
     else if (CHECK_COMMAND_EXISTS("gcc")) return (CompilerInfo){ .command="gcc", .style=CompilerArgStyle_GCC };
-    // clang in PATH
+    // Clang in PATH
     else if (CHECK_COMMAND_EXISTS("clang")) return (CompilerInfo){ .command="gcc", .style=CompilerArgStyle_GCC };
 
     return (CompilerInfo){ .command=NULL, .style=CompilerArgStyle_NONE };
@@ -123,12 +126,20 @@ int main(int argc, char** argv) {
     strcat(temp_exe, "/crunbin");
 
     make_dir(temp_crun);
-    
+
     int code = compile_funcs[compiler.style](compiler.command, to_compile, temp_exe);
     if (code != 0) {
-        fprintf(stderr, "ERROR: Compilation failed\n");
+        fprintf(stderr, "ERROR: Compilation failed or compiled with warnings\n");
         return 1;
     }
 
-    return system(temp_exe);
+    if (argc > 2) {
+        char** arr = malloc(sizeof(char*) * (argc - 1));
+        memcpy(arr, &argv[1], sizeof(char*) * (argc - 1));
+        int code = execv(temp_exe, (char* const*)arr);
+        free(arr);
+        return code;
+    } else {
+        return system(temp_exe);
+    }
 }
